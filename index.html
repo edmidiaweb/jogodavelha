@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jogo da Velha Melhor de 3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: #121212;
+    color: #eee;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+  }
+  h1 {
+    margin-bottom: 0.5rem;
+  }
+  #mode-select {
+    margin-bottom: 1rem;
+  }
+  select {
+    padding: 0.4rem 0.8rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    border: none;
+    outline: none;
+    cursor: pointer;
+  }
+  #scoreboard {
+    margin: 0.8rem 0 1.2rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+  }
+  #info {
+    margin: 1rem 0;
+    font-weight: 600;
+    font-size: 1.2rem;
+    height: 1.8rem;
+    text-align: center;
+    min-height: 1.8rem;
+    position: relative;
+  }
+  #message {
+    margin-top: 0.4rem;
+    font-style: italic;
+    color: #ff5252;
+    font-weight: 600;
+    min-height: 1.4rem;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  #message.show {
+    opacity: 1;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 10px;
+    width: 320px;
+    max-width: 90vw;
+    aspect-ratio: 1;
+    background: #222;
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 0 15px #0ff;
+  }
+  .cell {
+    background: #1e1e1e;
+    border-radius: 12px;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #0ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+  .cell:hover {
+    background: #0ff2;
+    transform: scale(1.05);
+  }
+  .cell.X {
+    color: #ff3864;
+  }
+  .cell.O {
+    color: #33ffcc;
+  }
+  #reset-btn {
+    margin-top: 1.5rem;
+    background: #0ff;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #121212;
+    font-weight: 600;
+    box-shadow: 0 0 10px #0ff;
+    transition: background 0.3s ease;
+  }
+  #reset-btn:hover {
+    background: #3ff;
+  }
+  .win-cell {
+    animation: glow 1s infinite alternate;
+  }
+  @keyframes glow {
+    from {
+      text-shadow: 0 0 5px #0ff, 0 0 15px #0ff;
+      transform: scale(1.2);
+    }
+    to {
+      text-shadow: 0 0 15px #0ff, 0 0 30px #0ff;
+      transform: scale(1.3);
+    }
+  }
+  @media (max-width: 400px) {
+    #board {
+      width: 90vw;
+    }
+    .cell {
+      font-size: 2.5rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>Jogo da Velha Melhor de 3</h1>
+
+<div id="mode-select">
+  <label for="mode">Modo:</label>
+  <select id="mode">
+    <option value="cpu">1 Jogador (vs Computador)</option>
+    <option value="2p">2 Jogadores</option>
+  </select>
+</div>
+
+<div id="scoreboard">
+  <div>Jogador X: <span id="scoreX">0</span></div>
+  <div>Empates: <span id="scoreTie">0</span></div>
+  <div>Jogador O: <span id="scoreO">0</span></div>
+</div>
+
+<div id="info">Vez do jogador X</div>
+<div id="message"></div>
+
+<div id="board"></div>
+
+<button id="reset-btn">Reiniciar Série</button>
+
+<script>
+  const boardElement = document.getElementById('board');
+  const infoElement = document.getElementById('info');
+  const messageElement = document.getElementById('message');
+  const modeSelect = document.getElementById('mode');
+  const resetBtn = document.getElementById('reset-btn');
+  const scoreXEl = document.getElementById('scoreX');
+  const scoreOEl = document.getElementById('scoreO');
+  const scoreTieEl = document.getElementById('scoreTie');
+
+  let board = ['', '', '', '', '', '', '', '', ''];
+  let currentPlayer = 'X';
+  let gameActive = true;
+  let mode = modeSelect.value;
+
+  let scoreX = 0;
+  let scoreO = 0;
+  let scoreTie = 0;
+  let partidaCount = 0;  // Conta partidas na série melhor de 3
+
+  const pcWinMessages = [
+    "kkkkk, quem sabe na próxima...",
+    "Treine mais um pouco!",
+    "Desse jeito fica fácil, ganso!!!"
+  ];
+
+  function createBoard() {
+    boardElement.innerHTML = '';
+    for(let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.dataset.index = i;
+      cell.addEventListener('click', () => handleCellClick(i));
+      boardElement.appendChild(cell);
+    }
+  }
+
+  createBoard();
+
+  modeSelect.addEventListener('change', () => {
+    mode = modeSelect.value;
+    resetSerie();
+  });
+
+  resetBtn.addEventListener('click', resetSerie);
+
+  function updateBoard() {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach((cell, idx) => {
+      cell.textContent = board[idx];
+      cell.classList.remove('X', 'O', 'win-cell');
+      if(board[idx]) {
+        cell.classList.add(board[idx]);
+      }
+    });
+  }
+
+  function switchPlayer() {
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  }
+
+  function checkWinner(bd = board) {
+    const wins = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+    for (const [a, c, d] of wins) {
+      if (bd[a] && bd[a] === bd[c] && bd[c] === bd[d]) {
+        return bd[a];
+      }
+    }
+    if (!bd.includes('')) return 'Tie';
+    return null;
+  }
+
+  function checkResult() {
+    return checkWinner(board);
+  }
+
+  function endGame(winner) {
+    gameActive = false;
+    messageElement.classList.remove('show');
+    if(winner === 'Tie') {
+      scoreTie++;
+      scoreTieEl.textContent = scoreTie;
+      infoElement.textContent = 'Empate!';
+    } else {
+      if(winner === 'X') {
+        scoreX++;
+        scoreXEl.textContent = scoreX;
+      } else {
+        scoreO++;
+        scoreOEl.textContent = scoreO;
+      }
+      infoElement.textContent = `Jogador ${winner} venceu!`;
+      highlightWin(winner);
+
+      if (mode === 'cpu' && winner === 'O') {
+        showPcWinMessage();
+      }
+    }
+    partidaCount++;
+
+    // Verifica se alguém ganhou a melhor de 3
+    if(scoreX === 2 || scoreO === 2) {
+      setTimeout(() => {
+        alert(`Jogador ${scoreX === 2 ? 'X' : 'O'} venceu a melhor de 3! Série reiniciada.`);
+        resetSerie();
+      }, 1500);
+      return;
+    }
+
+    setTimeout(() => {
+      startNewMatch();
+    }, 2200);
+  }
+
+  function highlightWin(winner) {
+    const wins = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+    const cells = document.querySelectorAll('.cell');
+    for(const [a,c,d] of wins) {
+      if(board[a] === winner && board[c] === winner && board[d] === winner) {
+        cells[a].classList.add('win-cell');
+        cells[c].classList.add('win-cell');
+        cells[d].classList.add('win-cell');
+      }
+    }
+  }
+
+  function showPcWinMessage() {
+    const msg = pcWinMessages[Math.floor(Math.random() * pcWinMessages.length)];
+    messageElement.textContent = msg;
+    messageElement.classList.add('show');
+  }
+
+  function handleCellClick(index) {
+    if(!gameActive) return;
+    if(board[index] !== '') return;
+
+    board[index] = currentPlayer;
+    updateBoard();
+
+    let result = checkResult();
+
+    if(result) {
+      endGame(result);
+      return;
+    }
+
+    if(mode === 'cpu' && currentPlayer === 'X') {
+      currentPlayer = 'O';
+      infoElement.textContent = "Vez do Computador (O)";
+      setTimeout(() => {
+        cpuMove();
+      }, 500);
+    } else {
+      switchPlayer();
+      infoElement.textContent = `Vez do jogador ${currentPlayer}`;
+    }
+  }
+
+  function resetGame() {
+    board = ['', '', '', '', '', '', '', '', ''];
+    gameActive = true;
+    updateBoard();
+    messageElement.classList.remove('show');
+    infoElement.textContent = `Vez do jogador ${currentPlayer}`;
+  }
+
+  function resetSerie() {
+    scoreX = 0;
+    scoreO = 0;
+    scoreTie = 0;
+    partidaCount = 0;
+    scoreXEl.textContent = scoreX;
+    scoreOEl.textContent = scoreO;
+    scoreTieEl.textContent = scoreTie;
+    currentPlayer = 'X';
+    mode = modeSelect.value;
+    resetGame();
+  }
+
+  // Função minimax para IA
+  function checkWinnerMinimax(bd) {
+    const wins = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+    for (const [a, c, d] of wins) {
+      if (bd[a] && bd[a] === bd[c] && bd[c] === bd[d]) {
+        return bd[a];
+      }
+    }
+    if (!bd.includes('')) return 'Tie';
+    return null;
+  }
+
+  function minimax(newBoard, player) {
+    const availSpots = newBoard
+      .map((val,i) => val === '' ? i : null)
+      .filter(i => i !== null);
+
+    const winner = checkWinnerMinimax(newBoard);
+    if (winner === 'X') return {score: -10};
+    else if (winner === 'O') return {score: 10};
+    else if (winner === 'Tie') return {score: 0};
+
+    const moves = [];
+
+    for (const i of availSpots) {
+      const move = {};
+      move.index = i;
+      newBoard[i] = player;
+
+      if (player === 'O') {
+        const result = minimax(newBoard, 'X');
+        move.score = result.score;
+      } else {
+        const result = minimax(newBoard, 'O');
+        move.score = result.score;
+      }
+
+      newBoard[i] = '';
+      moves.push(move);
+    }
+
+    let bestMove;
+    if (player === 'O') {
+      let bestScore = -Infinity;
+      for (const m of moves) {
+        if (m.score > bestScore) {
+          bestScore = m.score;
+          bestMove = m;
+        }
+      }
+    } else {
+      let bestScore = Infinity;
+      for (const m of moves) {
+        if (m.score < bestScore) {
+          bestScore = m.score;
+          bestMove = m;
+        }
+      }
+    }
+    return bestMove;
+  }
+
+  function bestMove() {
+    const move = minimax([...board], 'O');
+    return move ? move.index : -1;
+  }
+
+  function cpuMove() {
+    // Tenta ganhar
+    for(let i = 0; i < 9; i++) {
+      if(board[i] === '') {
+        board[i] = 'O';
+        if(checkResult() === 'O') {
+          updateBoard();
+          endTurn();
+          return;
+        }
+        board[i] = '';
+      }
+    }
+    // Bloqueia o jogador
+    for(let i = 0; i < 9; i++) {
+      if(board[i] === '') {
+        board[i] = 'X';
+        if(checkResult() === 'X') {
+          board[i] = 'O';
+          updateBoard();
+          endTurn();
+          return;
+        }
+        board[i] = '';
+      }
+    }
+    // Pega o centro
+    if(board[4] === '') {
+      board[4] = 'O';
+      updateBoard();
+      endTurn();
+      return;
+    }
+    // Pega um canto
+    const corners = [0,2,6,8];
+    for(const i of corners) {
+      if(board[i] === '') {
+        board[i] = 'O';
+        updateBoard();
+        endTurn();
+        return;
+      }
+    }
+    // Usa minimax
+    const move = bestMove();
+    if(move !== -1) {
+      board[move] = 'O';
+      updateBoard();
+      endTurn();
+    }
+  }
+
+  function endTurn() {
+    const res = checkResult();
+    if(res) endGame(res);
+    else {
+      currentPlayer = 'X';
+      infoElement.textContent = "Vez do jogador X";
+    }
+  }
+
+  function startNewMatch() {
+    // Troca quem começa na próxima partida:
+    // partidaCount é zero-based, então a primeira partidaCount=0 começa X,
+    // segunda partidaCount=1 começa O, terceira começa X, etc
+    currentPlayer = partidaCount % 2 === 0 ? 'X' : 'O';
+    resetGame();
+
+    if(mode === 'cpu' && currentPlayer === 'O') {
+      infoElement.textContent = "Vez do Computador (O)";
+      gameActive = false;
+      setTimeout(() => {
+        gameActive = true;
+        cpuMove();
+      }, 700);
+    } else {
+      infoElement.textContent = `Vez do jogador ${currentPlayer}`;
+    }
+  }
+
+  // Inicia a série ao carregar
+  startNewMatch();
+</script>
+
+</body>
+</html>
