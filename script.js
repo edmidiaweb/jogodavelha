@@ -1,71 +1,57 @@
-// script.js
-
 const boardElement = document.getElementById('board');
 const nextBtn = document.getElementById('next-btn');
 const resetBtn = document.getElementById('reset-btn');
 const messageElement = document.querySelector('.message');
 const scoreboard = document.getElementById('scoreboard');
 
-let board = ['', '', '', '', '', '', '', '', ''];
-let userTurn = true;  // true = usuário, false = máquina
-let gameActive = false;
+let board = Array(9).fill('');
+let userTurn = true;
 let playerSymbol = 'X';
 let computerSymbol = 'O';
-let firstGame = true;
 let matchCount = 0;
 let userWins = 0;
 let computerWins = 0;
 let draws = 0;
 let seriesOver = false;
+let firstGame = true;
 
 const winningCombinations = [
   [0,1,2], [3,4,5], [6,7,8],
   [0,3,6], [1,4,7], [2,5,8],
   [0,4,8], [2,4,6]
 ];
-
 function createBoard() {
   boardElement.innerHTML = '';
   boardElement.style.borderColor = getBorderColor();
-  board.forEach((cell, index) => {
+  board.forEach((_, index) => {
     const cellDiv = document.createElement('div');
     cellDiv.classList.add('cell');
     cellDiv.dataset.index = index;
-    cellDiv.textContent = cell;
     cellDiv.addEventListener('click', onCellClick);
     boardElement.appendChild(cellDiv);
   });
 }
 
 function getBorderColor() {
-  // Cores diferentes para cada partida (mod 5)
-  const colors = ['#3498db', '#e67e22', '#2ecc71', '#9b59b6', '#e74c3c'];
+  const colors = ['#00ffff', '#ff6600', '#00ff00', '#9900cc', '#ff3333'];
   return colors[matchCount % colors.length];
 }
 
 function onCellClick(e) {
-  if (!gameActive) return;
-  const index = e.target.dataset.index;
-  if (board[index] !== '') return;
-  if (!userTurn) return;
-
-  makeMove(index, playerSymbol);
-  if (checkResult(playerSymbol)) return;
-  userTurn = false;
-
-  setTimeout(() => {
-    computerPlay();
-  }, 400);
+  if (!userTurn || seriesOver || board[e.target.dataset.index] !== '') return;
+  makeMove(e.target.dataset.index, playerSymbol);
+  if (!checkResult(playerSymbol)) {
+    userTurn = false;
+    setTimeout(computerPlay, 400);
+  }
 }
-
 function makeMove(index, symbol) {
   board[index] = symbol;
   updateBoard();
 }
 
 function updateBoard() {
-  const cells = boardElement.querySelectorAll('.cell');
-  cells.forEach((cell, idx) => {
+  boardElement.querySelectorAll('.cell').forEach((cell, idx) => {
     cell.textContent = board[idx];
   });
 }
@@ -73,16 +59,17 @@ function updateBoard() {
 function checkResult(symbol) {
   if (checkWin(symbol)) {
     gameActive = false;
+    animateVictory();
     updateScore(symbol);
-    showMessage(symbol === playerSymbol ? "Você teve sorte desta vez" : "Computador venceu esta partida");
+    let msg = symbol === playerSymbol ? "Você teve sorte desta vez" : getRandomTaunt();
+    showMessage(msg);
     checkSeriesOver();
     return true;
   }
   if (board.every(cell => cell !== '')) {
-    gameActive = false;
     draws++;
     updateScore();
-    showMessage("Empate!");
+    showMessage("Empate! " + getRandomTaunt());
     checkSeriesOver();
     return true;
   }
@@ -90,143 +77,108 @@ function checkResult(symbol) {
 }
 
 function checkWin(symbol) {
-  return winningCombinations.some(comb => comb.every(idx => board[idx] === symbol));
+  return winningCombinations.some(comb => comb.every(i => board[i] === symbol));
+}
+
+function animateVictory() {
+  boardElement.classList.add('borda-piscando');
+  setTimeout(() => boardElement.classList.remove('borda-piscando'), 600);
+}
+function computerPlay() {
+  let move = firstGame ? bestMove() : defensiveMove();
+  makeMove(move, computerSymbol);
+  if (!checkResult(computerSymbol)) {
+    userTurn = true;
+    showMessage("Sua vez");
+  }
+}
+
+function bestMove() {
+  return strategicMove(computerSymbol, playerSymbol);
+}
+
+function defensiveMove() {
+  return strategicMove(playerSymbol, computerSymbol);
+}
+
+function strategicMove(primary, secondary) {
+  let move = findWinningMove(secondary);
+  if (move !== -1) return move;
+  move = findWinningMove(primary);
+  if (move !== -1) return move;
+  if (board[4] === '') return 4;
+  return [0,2,6,8,1,3,5,7].find(i => board[i] === '') ?? -1;
+}
+
+function findWinningMove(sym) {
+  for (const [a,b,c] of winningCombinations) {
+    const line = [board[a], board[b], board[c]];
+    const idx = line.indexOf('');
+    if (line.filter(x => x === sym).length === 2 && idx !== -1)
+      return [a,b,c][idx];
+  }
+  return -1;
+}
+function nextMatch() {
+  if (seriesOver) return;
+  matchCount++;
+  board.fill('');
+  createBoard();
+  firstGame = matchCount === 1;
+  userTurn = matchCount % 2 === 1;
+  showMessage(userTurn ? "Você começa!" : "Computador começa!");
+  gameActive = true;
+  nextBtn.disabled = true;
+  resetBtn.disabled = false;
+  if (!userTurn) setTimeout(computerPlay, 600);
+}
+
+function resetSeries() {
+  matchCount = userWins = computerWins = draws = 0;
+  board.fill('');
+  createBoard();
+  updateScore();
+  showMessage("Clique em 'Próxima Partida' para iniciar.");
+  nextBtn.disabled = false;
+  resetBtn.disabled = true;
+  seriesOver = false;
 }
 
 function updateScore(winner) {
   if (winner === playerSymbol) userWins++;
   else if (winner === computerSymbol) computerWins++;
-  // Empates já contados na função anterior
   scoreboard.textContent = `Vitórias Usuário: ${userWins} | Vitórias Máquina: ${computerWins} | Empates: ${draws}`;
+}
+
+function checkSeriesOver() {
+  if (userWins === 3 || computerWins === 3) {
+    seriesOver = true;
+    showMessage(`Parabéns ao vencedor: ${userWins === 3 ? "Usuário" : "Computador"}`);
+    nextBtn.disabled = true;
+    resetBtn.disabled = false;
+  } else {
+    nextBtn.disabled = false;
+  }
 }
 
 function showMessage(msg) {
   messageElement.textContent = msg;
 }
 
-function computerPlay() {
-  if (!gameActive) return;
-
-  let move;
-
-  // Lógica para primeira partida: deixa usuário ganhar, mas sistema joga normalmente
-  if (firstGame) {
-    move = bestMove();
-  } else {
-    // A partir da 2ª partida, foca em empate, evita perder
-    move = defensiveMove();
-  }
-
-  makeMove(move, computerSymbol);
-
-  if (checkResult(computerSymbol)) return;
-
-  userTurn = true;
-  showMessage("Sua vez");
-}
-
-function bestMove() {
-  // Escolhe melhor movimento (ataca e defende)
-  let move = findWinningMove(computerSymbol);
-  if (move !== -1) return move;
-
-  move = findWinningMove(playerSymbol);
-  if (move !== -1) return move;
-
-  if (board[4] === '') return 4;
-
-  const corners = [0,2,6,8].filter(i => board[i] === '');
-  if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
-
-  const sides = [1,3,5,7].filter(i => board[i] === '');
-  if (sides.length) return sides[Math.floor(Math.random()*sides.length)];
-
-  return board.findIndex(c => c === '');
-}
-
-function defensiveMove() {
-  // Evita perder e tenta empatar
-  // Se tem chance de ganhar, aproveita
-  let move = findWinningMove(computerSymbol);
-  if (move !== -1) return move;
-
-  // Bloqueia vitória do usuário
-  move = findWinningMove(playerSymbol);
-  if (move !== -1) return move;
-
-  // Caso contrário, tenta evitar jogadas que deixem usuário vencer
-
-  // Para simplificação, segue mesma estratégia que bestMove mas prioriza bloqueios
-  return bestMove();
-}
-
-function findWinningMove(symbol) {
-  for (const comb of winningCombinations) {
-    const marks = comb.map(idx => board[idx]);
-    if (marks.filter(m => m === symbol).length === 2 && marks.includes('')) {
-      return comb[marks.indexOf('')];
-    }
-  }
-  return -1;
-}
-
-function nextMatch() {
-  if (seriesOver) return;
-
-  matchCount++;
-  board.fill('');
-  createBoard();
-
-  // Alterna quem começa: partidas ímpares -> usuário; partidas pares -> computador
-  if (matchCount % 2 === 1) {
-    userTurn = true;
-    showMessage("Sua vez (você começa a partida)");
-  } else {
-    userTurn = false;
-    showMessage("Computador começa a partida");
-    setTimeout(() => {
-      computerPlay();
-    }, 500);
-  }
-
-  // Define se é a primeira partida para a lógica especial de deixar usuário ganhar só na 1ª partida
-  firstGame = (matchCount === 1);
-
-  gameActive = true;
-  nextBtn.disabled = true;
-  resetBtn.disabled = false;
-}
-
-function resetSeries() {
-  matchCount = 0;
-  userWins = 0;
-  computerWins = 0;
-  draws = 0;
-  seriesOver = false;
-  board.fill('');
-  createBoard();
-  scoreboard.textContent = `Vitórias Usuário: 0 | Vitórias Máquina: 0 | Empates: 0`;
-  showMessage("Clique em 'Próxima Partida' para iniciar");
-  nextBtn.disabled = false;
-  resetBtn.disabled = true;
-  gameActive = false;
-}
-
-function checkSeriesOver() {
-  if (userWins === 3 || computerWins === 3) {
-    seriesOver = true;
-    gameActive = false;
-    nextBtn.disabled = true;
-    resetBtn.disabled = false;
-    showMessage(`Parabéns ao vencedor: ${userWins === 3 ? "Usuário" : "Computador"}`);
-  } else {
-    nextBtn.disabled = false;
-  }
+function getRandomTaunt() {
+  const frases = [
+    "Tente de novo, humano!",
+    "Hoje não é seu dia!",
+    "Você realmente achou que ia ganhar?",
+    "Empatar é o seu limite!",
+    "Computador 1 x 0 Humanidade!"
+  ];
+  return frases[Math.floor(Math.random() * frases.length)];
 }
 
 // Eventos
 nextBtn.addEventListener('click', nextMatch);
 resetBtn.addEventListener('click', resetSeries);
 
-// Inicialização
+// Inicializar
 resetSeries();
