@@ -1,0 +1,117 @@
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background-color: #121212;
+  color: #0ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100vh;
+  margin: 0;
+  padding: 1rem;
+}
+
+h1 {
+  margin-bottom: 1rem;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  grid-template-rows: repeat(3, 100px);
+  gap: 10px;
+  margin-bottom: 1rem;
+  border: 5px solid #0ff;
+  border-radius: 15px;
+  position: relative;
+  transition: border-color 0.5s ease;
+}
+
+.cell {
+  background-color: #222;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: #0ff;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: background-color 0.3s ease;
+}
+
+.cell:hover {
+  background-color: #0ff1a;
+}
+
+.win-cell {
+  background-color: #0ff;
+  color: #121212;
+  font-weight: bold;
+  position: relative;
+  animation: pulse 0.6s ease-out;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 #0ff; }
+  70% { box-shadow: 0 0 20px 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.controls {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.controls button {
+  background: #0ff;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  font-size: 1.1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #121212;
+  font-weight: 600;
+  box-shadow: 0 0 10px #0ff;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.controls button:hover {
+  background: #3ff;
+  transform: scale(1.05);
+}
+
+#scoreboard {
+  margin-top: 1rem;
+  font-size: 1.3rem;
+}
+
+.message {
+  margin-top: 1rem;
+  font-size: 1.4rem;
+  min-height: 2rem;
+  font-weight: 600;
+  color: #0ff;
+  text-align: center;
+}
+
+@keyframes piscar-borda {
+  0%, 100% {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #00ff00; /* Verde pode ser substituído conforme preferir */
+  }
+}
+
+.borda-piscando {
+  animation: piscar-borda 0.2s ease-in-out 3;
+}
